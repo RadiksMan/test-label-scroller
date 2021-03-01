@@ -1,71 +1,41 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- * @flow strict-local
- */
-
 import React from 'react';
 import {
   SafeAreaView,
   StyleSheet,
-  ScrollView,
+  Text, 
   View,
-  Text,
-  StatusBar,
+  ScrollView,
+  TouchableOpacity,
+  Image
 } from 'react-native';
+import LabelScroller from './LabelScroller'
+import data from './data.json'
 
-import {
-  Header,
-  LearnMoreLinks,
-  Colors,
-  DebugInstructions,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+const App = () => {
 
-const App: () => React$Node = () => {
+
+  const pressOnItem = item => {
+    console.log('pressOnItem item',item)
+  }
+
   return (
     <>
-      <StatusBar barStyle="dark-content" />
-      <SafeAreaView>
-        <ScrollView
-          contentInsetAdjustmentBehavior="automatic"
-          style={styles.scrollView}>
-          <Header />
-          {global.HermesInternal == null ? null : (
-            <View style={styles.engine}>
-              <Text style={styles.footer}>Engine: Hermes</Text>
-            </View>
-          )}
-          <View style={styles.body}>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Step One</Text>
-              <Text style={styles.sectionDescription}>
-                Edit <Text style={styles.highlight}>App.js</Text> to change this
-                screen and then come back to see your edits.
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>See Your Changes</Text>
-              <Text style={styles.sectionDescription}>
-                <ReloadInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Debug</Text>
-              <Text style={styles.sectionDescription}>
-                <DebugInstructions />
-              </Text>
-            </View>
-            <View style={styles.sectionContainer}>
-              <Text style={styles.sectionTitle}>Learn More</Text>
-              <Text style={styles.sectionDescription}>
-                Read the docs to discover what to do next:
-              </Text>
-            </View>
-            <LearnMoreLinks />
-          </View>
+      <SafeAreaView style={{flex:1}}>
+        <ScrollView contentContainerStyle={{flex:1,justifyContent:'center'}}>
+          <LabelScroller 
+            columns={3}
+            data={data}
+            renderItem={({ item, index }) => (
+              <TouchableOpacity
+                key={item.id}
+                onPress={() => pressOnItem(item)}
+                style={styles.item}
+              > 
+                <Image style={styles.itemImage} source={{uri:item.image}}/>
+                <Text style={styles.itemLabel}>{item.label}</Text>
+              </TouchableOpacity>
+            )}
+          />
         </ScrollView>
       </SafeAreaView>
     </>
@@ -73,42 +43,24 @@ const App: () => React$Node = () => {
 };
 
 const styles = StyleSheet.create({
-  scrollView: {
-    backgroundColor: Colors.lighter,
+  item:{
+    padding:5,
+    borderWidth:1,
+    borderColor: 'red',
+    borderRadius:10,
+    justifyContent:'center',
+    alignItems:'center',
+    flexDirection:'row',
+    margin:3
   },
-  engine: {
-    position: 'absolute',
-    right: 0,
+  itemLabel:{
+
   },
-  body: {
-    backgroundColor: Colors.white,
-  },
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-    color: Colors.black,
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-    color: Colors.dark,
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-  footer: {
-    color: Colors.dark,
-    fontSize: 12,
-    fontWeight: '600',
-    padding: 4,
-    paddingRight: 12,
-    textAlign: 'right',
-  },
+  itemImage:{
+    width:20,
+    height:20,
+    marginHorizontal:5
+  }
 });
 
 export default App;
