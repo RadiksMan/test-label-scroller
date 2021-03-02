@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -11,10 +11,23 @@ import {
 } from 'react-native';
 import { divideArray } from './helper';
 
-const LabelScroller = ({ data, renderItem, columns, minLabelLength, componentsArray }) => {
-  const scrollListRefs = useRef({});
+const LabelScroller = ({ data, renderItem, columns, minLabelLength, reverse, random }) => {
+  const scrollListRefs = useRef({}).current;
 
-  if (!data) return null;
+  useEffect(() => {
+    // reset refs if data/columns change
+    for (const row in scrollListRefs) {
+      const scrollRef = scrollListRefs[row];
+      if (!scrollRef) {
+        delete scrollListRefs[row];
+        return;
+      }
+      scrollRef.scrollToOffset({ offset: 0, animated: false });
+      scrollRef.currentScrollPositonX = 0;
+    }
+  }, [columns, data]);
+
+  if (!data || !scrollListRefs) return null;
 
   if (data.length <= minLabelLength) {
     //render elems without scrolls
@@ -24,6 +37,20 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, componentsAr
       </View>
     );
   }
+
+  const calculateNewScrollOffset = (gesture, scrollRef) => {
+    const translatedX = gesture.dx;
+    const currentScrollPositonX = scrollRef?.currentScrollPositonX || 0;
+    const currentScrollWidth = scrollRef?.currentScrollWidth || 1;
+    const calculatedOffset = parseInt(
+      (translatedX * currentScrollWidth) / Dimensions.get('window').width / 3.5
+    );
+    const newOffset =
+      translatedX < 0
+        ? currentScrollPositonX + Math.abs(calculatedOffset) // translatedX < 0 - user scrolls right
+        : currentScrollPositonX - Math.abs(calculatedOffset); // user scrolls left
+    return newOffset;
+  };
 
   const panResponder = useRef(
     PanResponder.create({
@@ -36,64 +63,55 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, componentsAr
       onShouldBlockNativeResponder: () => false,
       // When user moves element
       onPanResponderMove: (event, gestureState) => {
-        //console.log('gestureState',gestureState.dx)
-        //const translatedX = Math.max(0, 0 + gestureState.dx);
-        const translatedX = gestureState.dx;
-        console.log('onPanResponderMove');
-        //console.log('scrollListRefs.current', scrollListRefs.current);
-        console.table(gestureState);
-        for (const row in scrollListRefs.current) {
-          const scrollRef = scrollListRefs.current[row];
-          //console.log('scrollRef.currentScrollPositonX', scrollRef.currentScrollPositonX);
-          const currentScrollPositonX = scrollRef.currentScrollPositonX || 0;
-          const currentScrollWidth = scrollRef.currentScrollWidth || 0;
-          //console.log('currentScrollPositonX', currentScrollPositonX);
-          //console.log('currentScrollWidth', currentScrollWidth);
+        //console.log('scrollListRefs', scrollListRefs);
+        for (const row in scrollListRefs) {
+          const scrollRef = scrollListRefs[row];
+          if (!scrollRef) return;
 
-          const calculatedOffset = parseInt(
-            (translatedX * currentScrollWidth) / Dimensions.get('window').width / 3
-          );
-          console.log('calculatedOffset', calculatedOffset);
-          const newOffset =
-            translatedX < 0
-              ? currentScrollPositonX + Math.abs(calculatedOffset) // translatedX < 0 - user scrolls right
-              : currentScrollPositonX - Math.abs(calculatedOffset); // translatedX > 0 - user scrolls left
+          const newOffset = calculateNewScrollOffset(gestureState, scrollRef);
 
-          //console.log('scrollRef', scrollRef);
-          console.log('newOffset', newOffset);
-          scrollRef.scrollToOffset({ offset: newOffset, animated: true });
+          //console.log('newOffset', newOffset);
+          scrollRef.scrollToOffset({ offset: newOffset });
         }
       },
       // When user drag ends
       onPanResponderRelease: (e, gestureState) => {
         //console.log('onPanResponderRelease');
         //console.table(gestureState);
-        const overscrolledRight = gestureState.vx <= 0.06;
-        // console.log('overscrolledRight',overscrolledRight)
-
-        // console.log('scrollListRefs.current',scrollListRefs.current)
-        for (const row in scrollListRefs.current) {
-          const scrollRef = scrollListRefs.current[row];
-
-          //scrollRef.scrollToOffset({offset:300,animated:true})
-        }
-      },
-      // When user gesture is moved outside of direct parent
-      onPanResponderTerminate: (evt, gesture) => {
-        console.log('onPanResponderTerminate', gesture);
+        // const overscrolledX = Math.abs(gestureState.vx) >= 1;
+        // if (overscrolledX) {
+        //   const overscrolled = Math.abs(gestureState.vx);
+        //   const overscrolledNormilize = overscrolled > 3 ? 3 : overscrolled;
+        //   for (const row in scrollListRefs) {
+        //     const scrollRef = scrollListRefs[row];
+        //     if (!scrollRef) return;
+        //     const offset = calculateNewScrollOffset(gestureState, scrollRef);
+        //     const newOffset = offset;
+        //     scrollRef.scrollToOffset({ offset: newOffset });
+        //   }
+        //   console.log('Math.abs(gestureState.vx)', Math.abs(gestureState.vx));
+        // }
       }
     })
   ).current;
 
-  const divided = useMemo(() => divideArray(data, columns), [data, columns]);
+  let divided = useMemo(() => {
+    let array = divideArray(data, columns);
+    if (reverse) return array.reverse();
+    if (random) {
+      return array.sort(() => 0.5 - Math.random());
+    }
+    return array;
+  }, [data, columns, reverse, random]);
 
+  console.log('divided', divided);
   return (
     <View>
       <View {...panResponder.panHandlers}>
         {divided.map((rowData, i) => (
           <FlatList
             key={i.toString()}
-            ref={ref => (scrollListRefs.current[i] = ref)}
+            ref={ref => (scrollListRefs[i] = ref)}
             data={rowData}
             renderItem={renderItem}
             keyExtractor={item => item.id.toString()}
@@ -103,10 +121,10 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, componentsAr
             scrollEnabled={false}
             scrollEventThrottle={2}
             onScroll={e => {
-              scrollListRefs.current[i].currentScrollPositonX = e.nativeEvent.contentOffset.x;
+              scrollListRefs[i].currentScrollPositonX = e.nativeEvent.contentOffset.x;
             }}
             onContentSizeChange={contentWidth => {
-              scrollListRefs.current[i].currentScrollWidth = contentWidth;
+              scrollListRefs[i].currentScrollWidth = contentWidth;
             }}
           />
         ))}
