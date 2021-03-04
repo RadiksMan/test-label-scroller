@@ -1,18 +1,17 @@
 import React, { useCallback, useMemo, useRef, useEffect } from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  FlatList,
-  PanResponder,
-  Animated,
-  Dimensions
-} from 'react-native';
-import { divideArray } from './helper';
+import { StyleSheet, View, FlatList, PanResponder, Dimensions } from 'react-native';
 
-const LabelScroller = ({ data, renderItem, columns, minLabelLength, reverse, random }) => {
+const LabelScroller = ({
+  data,
+  renderItem,
+  columns,
+  minLabelLength,
+  minimumInRow,
+  reverse,
+  random
+}) => {
   const scrollListRefs = useRef({}).current;
+  const deviceWidth = Dimensions.get('window').width;
 
   useEffect(() => {
     // reset refs if data/columns change
@@ -38,12 +37,43 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, reverse, ran
     );
   }
 
-  const calculateNewScrollOffset = (gesture, scrollRef) => {
+  const divideArray = (dataArray, size) => {
+    let array = [...dataArray];
+    let i = size;
+    let dividedArray = [];
+    let tempCount = dataArray.length;
+    while (0 < i) {
+      // Don't slice last array
+      if (i === 1) {
+        dividedArray.push(array);
+        return dividedArray;
+      }
+
+      let rowCount = Math.ceil((tempCount / i) * 0.6); // get 60% items from each sub-array
+      if (rowCount < minimumInRow) rowCount = minimumInRow;
+      tempCount = tempCount - rowCount;
+      if (tempCount <= 0) return dividedArray;
+
+      const reducedItems = array.slice(0, rowCount);
+      dividedArray.push(reducedItems);
+      array.splice(0, rowCount);
+      i--;
+    }
+    return dividedArray;
+  };
+
+  const calculateScrollOffestPinch = (gesture, scrollRef) => {
+    //console.table(gesture);
+    const numberStrengthFix = Platform.OS === 'ios' ? 3.5 : 3.5; // number that decreases the strength of the gesture for different platforms
     const translatedX = gesture.dx;
     const currentScrollPositonX = scrollRef?.currentScrollPositonX || 0;
     const currentScrollWidth = scrollRef?.currentScrollWidth || 1;
+    console.log('numberStrengthFix', numberStrengthFix);
+    console.log('currentScrollWidth', currentScrollWidth);
+    console.log('deviceWidth', deviceWidth);
+    console.log('translatedX', translatedX);
     const calculatedOffset = parseInt(
-      (translatedX * currentScrollWidth) / Dimensions.get('window').width / 3.5
+      (translatedX * currentScrollWidth) / deviceWidth / numberStrengthFix / 2
     );
     const newOffset =
       translatedX < 0
@@ -52,13 +82,36 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, reverse, ran
     return newOffset;
   };
 
+  const calculateScrollOffestMove = (gesture, scrollRef) => {
+    // console.log('calculateScrollOffestMove');
+    // console.table(gesture);
+    const translatedX = gesture.dx;
+    const currentScrollPositonX = scrollRef?.currentScrollPositonX || 0;
+    const currentScrollWidth = scrollRef?.currentScrollWidth || 1;
+    // console.log('currentScrollPositonX', currentScrollPositonX);
+    // console.log('currentScrollWidth', currentScrollWidth);
+    console.log('translatedX', translatedX);
+    const newOffset =
+      translatedX < 0
+        ? currentScrollPositonX + Math.abs(translatedX) // translatedX < 0 - user scrolls right
+        : currentScrollPositonX - Math.abs(translatedX); // user scrolls left
+    return newOffset + deviceWidth / 2;
+  };
+
   const panResponder = useRef(
     PanResponder.create({
-      //these things if for if user touch tochables button in children
+      // if user touch tochables button in children - do not intercept
+      // onMoveShouldSetPanResponder: (evt, gestureState) => {
+      //   // skip if a tap
+      //   return Math.abs(gestureState.dx) >= 1 || Math.abs(gestureState.dy) >= 1;
+      // }, //true,
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponderCapture: () => false,
+      //onMoveShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: (e, { dx }) => {
+        return Math.abs(dx) > 20;
+      },
       onPanResponderTerminationRequest: () => true,
       onShouldBlockNativeResponder: () => false,
       // When user moves element
@@ -68,29 +121,32 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, reverse, ran
           const scrollRef = scrollListRefs[row];
           if (!scrollRef) return;
 
-          const newOffset = calculateNewScrollOffset(gestureState, scrollRef);
-
-          //console.log('newOffset', newOffset);
-          scrollRef.scrollToOffset({ offset: newOffset });
+          //const swipeStrength = Math.abs(gestureState.vx);
+          // overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
+          //console.log('overscrollValue', overscrollValue);
+          const offset = calculateScrollOffestMove(gestureState, scrollRef);
+          console.log('newOffset', offset);
+          //const offset = newOffset;
+          //console.log('onPanResponderMove row', row, '  newOffset', newOffset);
+          scrollRef.scrollToOffset({ offset, animated: true });
         }
+        console.log('______________');
       },
       // When user drag ends
       onPanResponderRelease: (e, gestureState) => {
-        //console.log('onPanResponderRelease');
-        //console.table(gestureState);
-        // const overscrolledX = Math.abs(gestureState.vx) >= 1;
-        // if (overscrolledX) {
-        //   const overscrolled = Math.abs(gestureState.vx);
-        //   const overscrolledNormilize = overscrolled > 3 ? 3 : overscrolled;
-        //   for (const row in scrollListRefs) {
-        //     const scrollRef = scrollListRefs[row];
-        //     if (!scrollRef) return;
-        //     const offset = calculateNewScrollOffset(gestureState, scrollRef);
-        //     const newOffset = offset;
-        //     scrollRef.scrollToOffset({ offset: newOffset });
-        //   }
-        //   console.log('Math.abs(gestureState.vx)', Math.abs(gestureState.vx));
-        // }
+        console.log('onPanResponderRelease');
+        console.table(gestureState);
+        for (const row in scrollListRefs) {
+          const scrollRef = scrollListRefs[row];
+          if (!scrollRef) return;
+          const swipeStrength = Math.abs(gestureState.vx);
+          const overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
+          //console.log('overscrollValue', overscrollValue);
+          const newOffset = calculateScrollOffestPinch(gestureState, scrollRef);
+          const offset = newOffset;
+          //console.log('onPanResponderMove row', row, '  newOffset', newOffset);
+          scrollRef.scrollToOffset({ offset, animated: true });
+        }
       }
     })
   ).current;
@@ -106,36 +162,35 @@ const LabelScroller = ({ data, renderItem, columns, minLabelLength, reverse, ran
 
   console.log('divided', divided);
   return (
-    <View>
-      <View {...panResponder.panHandlers}>
-        {divided.map((rowData, i) => (
-          <FlatList
-            key={i.toString()}
-            ref={ref => (scrollListRefs[i] = ref)}
-            data={rowData}
-            renderItem={renderItem}
-            keyExtractor={item => item.id.toString()}
-            horizontal
-            showsVerticalScrollIndicator={false}
-            showsHorizontalScrollIndicator={false}
-            scrollEnabled={false}
-            scrollEventThrottle={2}
-            onScroll={e => {
-              scrollListRefs[i].currentScrollPositonX = e.nativeEvent.contentOffset.x;
-            }}
-            onContentSizeChange={contentWidth => {
-              scrollListRefs[i].currentScrollWidth = contentWidth;
-            }}
-          />
-        ))}
-      </View>
+    <View {...panResponder.panHandlers}>
+      {divided.map((rowData, i) => (
+        <FlatList
+          key={i.toString()}
+          ref={ref => (scrollListRefs[i] = ref)}
+          data={rowData}
+          renderItem={renderItem}
+          keyExtractor={item => item.id.toString()}
+          horizontal
+          showsVerticalScrollIndicator={false}
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
+          scrollEventThrottle={16}
+          onScroll={e => {
+            scrollListRefs[i].currentScrollPositonX = e.nativeEvent.contentOffset.x;
+          }}
+          onContentSizeChange={contentWidth => {
+            scrollListRefs[i].currentScrollWidth = contentWidth;
+          }}
+        />
+      ))}
     </View>
   );
 };
 
 LabelScroller.defaultProps = {
   minLabelLength: 20,
-  columns: 3
+  columns: 3,
+  minimumInRow: 5
 };
 
 export default LabelScroller;

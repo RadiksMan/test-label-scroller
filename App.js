@@ -9,7 +9,7 @@ import {
   Image
 } from 'react-native';
 import LabelScroller from './LabelScroller';
-import data from './data1000.json';
+import data from './data300.json';
 
 const App = () => {
   const pressOnItem = item => {
@@ -21,9 +21,8 @@ const App = () => {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <LabelScroller
-            columns={4}
+            columns={12}
             data={data}
-            random
             renderItem={({ item, index }) => (
               <TouchableOpacity key={item.id} onPress={() => pressOnItem(item)} style={styles.item}>
                 <Image style={styles.itemImage} source={{ uri: item.image }} />
