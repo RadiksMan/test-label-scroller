@@ -21,7 +21,7 @@ const App = () => {
       <SafeAreaView style={{ flex: 1 }}>
         <View style={{ flex: 1, justifyContent: 'center' }}>
           <LabelScroller
-            columns={13}
+            rows={13}
             data={data}
             renderItem={({ item, index }) => (
               <TouchableOpacity

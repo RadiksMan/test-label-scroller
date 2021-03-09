@@ -4,7 +4,7 @@ import { StyleSheet, View, FlatList, PanResponder, Dimensions } from 'react-nati
 const LabelScroller = ({
   data,
   renderItem,
-  columns,
+  rows,
   minLabelLength,
   minimumInRow,
   reverse,
@@ -15,7 +15,7 @@ const LabelScroller = ({
   const deviceWidth = Dimensions.get('window').width;
 
   useEffect(() => {
-    // reset refs if data/columns change
+    // reset refs if data/rows change
     for (const row in scrollListRefs) {
       const scrollRef = scrollListRefs[row];
       if (!scrollRef) {
@@ -23,9 +23,10 @@ const LabelScroller = ({
         return;
       }
       scrollRef.scrollToOffset({ offset: 0, animated: false });
-      scrollRef.currentScrollPositonX = 0;
+      scrollRef.scrollPositonX = 0;
+      tempPanResponderMoveX = null;
     }
-  }, [columns, data]);
+  }, [rows, data]);
 
   if (!data || !renderItem) {
     console.warn("LabelScroller required 'data' and 'renderItem' prop - returned null!");
@@ -55,7 +56,7 @@ const LabelScroller = ({
 
       let rowCount = Math.ceil((tempCount / i) * 0.6); // get 60% items from each sub-array
       if (rowCount < minimumInRow) rowCount = minimumInRow;
-      tempCount = tempCount - rowCount;
+      tempCount = tempCount - rowCount; //at each iteration take from the entire array
       if (tempCount <= 0) return dividedArray;
 
       const reducedItems = array.slice(0, rowCount);
@@ -68,18 +69,17 @@ const LabelScroller = ({
 
   const panResponder = useRef(
     PanResponder.create({
-      // if user touch tochables button in children - do not intercept
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
+      onMoveShouldSetPanResponder: (e, gestureState) => {
         // skip if a tap
         return Math.abs(gestureState.dx) >= 1 || Math.abs(gestureState.dy) >= 1;
       },
-      // hooks for enabling scrolling outside panresponder
+      // some hooks for enabling scrolling outside panresponder
       onStartShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponderCapture: () => false,
       onShouldBlockNativeResponder: () => false,
       onPanResponderTerminationRequest: () => false,
       // when user moves element
-      onPanResponderMove: (event, gestureState) => {
+      onPanResponderMove: (e, gestureState) => {
         if (tempPanResponderMoveX) {
           const diff = gestureState.moveX - tempPanResponderMoveX;
 
@@ -87,9 +87,9 @@ const LabelScroller = ({
             const scrollRef = scrollListRefs[row];
             if (!scrollRef) return;
 
-            const scrollRowPositionX = scrollRef.currentScrollPositonX || 0;
-            const scrollRowWidth = scrollRef.currentScrollWidth;
-            const calculatedOffset = (Math.abs(diff) * scrollRowWidth) / deviceWidth / 4;
+            const scrollRowPositionX = scrollRef.scrollPositonX || 0;
+            const scrollRowFullWidth = scrollRef.scrollFullWidth;
+            const calculatedOffset = (Math.abs(diff) * scrollRowFullWidth) / deviceWidth / 4;
 
             const newOffset =
               gestureState.dx > 0
@@ -109,11 +109,11 @@ const LabelScroller = ({
 
         for (const row in scrollListRefs) {
           const scrollRef = scrollListRefs[row];
-          const scrollRowPositionX = scrollRef.currentScrollPositonX || 0;
-          const scrollRowWidth = scrollRef.currentScrollWidth;
+          const scrollRowPositionX = scrollRef.scrollPositonX || 0;
+          const scrollRowFullWidth = scrollRef.scrollFullWidth;
           if (!scrollRef) return;
 
-          let calculatedOffset = (deviceWidth * 0.1 * scrollRowWidth) / deviceWidth / 6;
+          let calculatedOffset = (deviceWidth * 0.1 * scrollRowFullWidth) / deviceWidth / 6;
           if (swipeEffort) {
             calculatedOffset = calculatedOffset * Math.abs(vx);
           }
@@ -131,35 +131,35 @@ const LabelScroller = ({
     })
   ).current;
 
-  let divided = useMemo(() => {
-    let array = splitArrayToUnequal(data, columns);
+  const dividedByRow = useMemo(() => {
+    let array = splitArrayToUnequal(data, rows);
     if (reverse) return array.reverse();
     if (random) {
       return array.sort(() => 0.5 - Math.random());
     }
     return array;
-  }, [data, columns, reverse, random]);
+  }, [data, rows, reverse, random]);
 
   return (
     <View {...panResponder.panHandlers}>
-      {divided.map((rowData, i) => (
+      {dividedByRow.map((rowData, i) => (
         <FlatList
           nestedScrollEnabled
           key={i.toString()}
           ref={ref => (scrollListRefs[i] = ref)}
           data={rowData}
           renderItem={renderItem}
-          keyExtractor={item => item.id.toString()}
+          keyExtractor={(item, index) => 'key' + index}
           horizontal
           showsVerticalScrollIndicator={false}
           showsHorizontalScrollIndicator={false}
           scrollEnabled={false}
           scrollEventThrottle={16}
           onScroll={e => {
-            scrollListRefs[i].currentScrollPositonX = e.nativeEvent.contentOffset.x;
+            scrollListRefs[i].scrollPositonX = e.nativeEvent.contentOffset.x;
           }}
           onContentSizeChange={contentWidth => {
-            scrollListRefs[i].currentScrollWidth = contentWidth;
+            scrollListRefs[i].scrollFullWidth = contentWidth;
           }}
         />
       ))}
@@ -169,7 +169,7 @@ const LabelScroller = ({
 
 LabelScroller.defaultProps = {
   minLabelLength: 20,
-  columns: 3,
+  rows: 3,
   minimumInRow: 5
 };
 
