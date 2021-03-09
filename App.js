@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   itemLabel: {},
   itemImage: {
     width: 20,
-    height: 20,
+    height: 40,
     marginHorizontal: 5
   }
 });

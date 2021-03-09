@@ -12,6 +12,8 @@ const LabelScroller = ({
 }) => {
   const scrollListRefs = useRef({}).current;
   const deviceWidth = Dimensions.get('window').width;
+  const tempPanResponderMoveValue = useRef(null);
+  const tempPanResponderStartValue = useRef(null);
 
   useEffect(() => {
     // reset refs if data/columns change
@@ -85,68 +87,121 @@ const LabelScroller = ({
   const calculateScrollOffestMove = (gesture, scrollRef) => {
     // console.log('calculateScrollOffestMove');
     // console.table(gesture);
-    const translatedX = gesture.dx;
+    let translatedX = gesture.dx;
+    const isHasPreviousMoveValue = tempPanResponderMoveValue.current !== null;
+    if (isHasPreviousMoveValue) {
+      //console.log('isHasPreviousMoveValue',isHasPreviousMoveValue)
+      //translatedX = tempPanResponderMoveValue.current < 0 ? (translatedX + Math.abs(tempPanResponderMoveValue.current)) : (translatedX - tempPanResponderMoveValue.current)
+    }
     const currentScrollPositonX = scrollRef?.currentScrollPositonX || 0;
     const currentScrollWidth = scrollRef?.currentScrollWidth || 1;
     // console.log('currentScrollPositonX', currentScrollPositonX);
     // console.log('currentScrollWidth', currentScrollWidth);
-    console.log('translatedX', translatedX);
+    //console.log('translatedX', translatedX);
     const newOffset =
-      translatedX < 0
+      gesture.dx < 0
         ? currentScrollPositonX + Math.abs(translatedX) // translatedX < 0 - user scrolls right
         : currentScrollPositonX - Math.abs(translatedX); // user scrolls left
-    return newOffset + deviceWidth / 2;
+    return newOffset;
   };
 
   const panResponder = useRef(
     PanResponder.create({
       // if user touch tochables button in children - do not intercept
-      // onMoveShouldSetPanResponder: (evt, gestureState) => {
-      //   // skip if a tap
-      //   return Math.abs(gestureState.dx) >= 1 || Math.abs(gestureState.dy) >= 1;
-      // }, //true,
-      onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => false,
-      //onMoveShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponderCapture: (e, { dx }) => {
-        return Math.abs(dx) > 20;
-      },
-      onPanResponderTerminationRequest: () => true,
-      onShouldBlockNativeResponder: () => false,
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // skip if a tap
+        return Math.abs(gestureState.dx) >= 1 || Math.abs(gestureState.dy) >= 1;
+      }, //true,
+      // onStartShouldSetPanResponder: () => true,
+      //onMoveShouldSetPanResponder: () => true,
+      //onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetResponderCapture: () => true,
+      // onMoveShouldSetPanResponderCapture: (e, { dx }) => {
+      //   return Math.abs(dx) > 20;
+      // },
+      //onPanResponderTerminationRequest: () => true,
+      //onShouldBlockNativeResponder: () => false,
       // When user moves element
-      onPanResponderMove: (event, gestureState) => {
-        //console.log('scrollListRefs', scrollListRefs);
-        for (const row in scrollListRefs) {
-          const scrollRef = scrollListRefs[row];
-          if (!scrollRef) return;
+      onPanResponderGrant: (event, gestureState) => {
+        console.log('onPanResponderGrant');
+        console.table(gestureState);
 
-          //const swipeStrength = Math.abs(gestureState.vx);
-          // overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
-          //console.log('overscrollValue', overscrollValue);
-          const offset = calculateScrollOffestMove(gestureState, scrollRef);
-          console.log('newOffset', offset);
-          //const offset = newOffset;
-          //console.log('onPanResponderMove row', row, '  newOffset', newOffset);
-          scrollRef.scrollToOffset({ offset, animated: true });
+        tempPanResponderStartValue.current = gestureState;
+      },
+      onPanResponderMove: (event, gestureState) => {
+        if (tempPanResponderMoveValue.current) {
+          const diff = gestureState.moveX - tempPanResponderMoveValue.current;
+          console.log('diff', diff);
+
+          for (const row in scrollListRefs) {
+            let newOffset = null;
+            const scrollRef = scrollListRefs[row];
+            if (!scrollRef) return;
+
+            const scrollPositionX = scrollRef?.currentScrollPositonX || 0;
+            const scrollWidth = scrollRef?.currentScrollWidth;
+
+            const calculatedOffset = (Math.abs(diff) * scrollWidth) / deviceWidth / 3;
+            console.log('calculatedOffset', calculatedOffset);
+            if (diff > 0) {
+              newOffset = scrollPositionX - calculatedOffset;
+            } else {
+              newOffset = scrollPositionX + calculatedOffset;
+            }
+            console.log('newOffset', newOffset);
+            scrollRef.scrollToOffset({ offset: newOffset, animated: false });
+          }
         }
+
+        // for (const row in scrollListRefs) {
+        //   const scrollRef = scrollListRefs[row];
+        //   if (!scrollRef) return;
+
+        //   //const swipeStrength = Math.abs(gestureState.vx);
+        //   // overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
+        //   //console.log('overscrollValue', overscrollValue);
+        //   const offset = calculateScrollOffestMove(gestureState, scrollRef);
+        //   //console.log('newOffset', offset);
+        //   //const offset = newOffset;
+        //   //console.log('onPanResponderMove row', row, '  newOffset', newOffset);
+        //   scrollRef.scrollToOffset({ offset, animated: true });
+        // }
+
+        tempPanResponderMoveValue.current = gestureState.moveX;
         console.log('______________');
       },
       // When user drag ends
       onPanResponderRelease: (e, gestureState) => {
-        console.log('onPanResponderRelease');
-        console.table(gestureState);
+        
+        // console.log('onPanResponderRelease');
+        // console.table(gestureState);
+        // for (const row in scrollListRefs) {
+        //   const scrollRef = scrollListRefs[row];
+        //   if (!scrollRef) return;
+        //   const swipeStrength = Math.abs(gestureState.vx);
+        //   const overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
+        //   //console.log('overscrollValue', overscrollValue);
+        //   const newOffset = calculateScrollOffestPinch(gestureState, scrollRef);
+        //   const offset = newOffset;
+        //   //console.log('onPanResponderMove row', row, '  newOffset', newOffset);
+        //   scrollRef.scrollToOffset({ offset, animated: true });
+        // }
+        const diff = gestureState.moveX - tempPanResponderMoveValue.current;
+        console.log('diff', diff);
+
         for (const row in scrollListRefs) {
           const scrollRef = scrollListRefs[row];
           if (!scrollRef) return;
-          const swipeStrength = Math.abs(gestureState.vx);
-          const overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
-          //console.log('overscrollValue', overscrollValue);
-          const newOffset = calculateScrollOffestPinch(gestureState, scrollRef);
-          const offset = newOffset;
-          //console.log('onPanResponderMove row', row, '  newOffset', newOffset);
-          scrollRef.scrollToOffset({ offset, animated: true });
+            const swipeStrength = Math.abs(gestureState.vx);
+            const overscrollValue = swipeStrength >= 1.5 ? Math.min(swipeStrength, 3) : 1;
+            console.log('overscrollValue',overscrollValue)
         }
+
+        
+
+        tempPanResponderStartValue.current = null;
+        tempPanResponderMoveValue.current = null;
       }
     })
   ).current;
