@@ -13,29 +13,27 @@ import data from './data300.json';
 
 const App = () => {
   const pressOnItem = item => {
-    console.log('pressOnItem item', item);
+    //do something with selected label
   };
 
   return (
     <>
-      <SafeAreaView style={{ flex: 1 }}>
-        <View style={{ flex: 1, justifyContent: 'center' }}>
-          <LabelScroller
-            rows={13}
-            data={data}
-            renderItem={({ item, index }) => (
-              <TouchableOpacity
-                key={item.id}
-                onPress={() => pressOnItem(item)}
-                style={styles.item}
-                activeOpacity={0.8}>
-                <Image style={styles.itemImage} source={{ uri: item.image }} />
-                <Text style={styles.itemLabel}>{item.label}</Text>
-              </TouchableOpacity>
-            )}
-          />
-        </View>
-      </SafeAreaView>
+      <View style={{ flex: 1, justifyContent: 'center' }}>
+        <LabelScroller
+          rows={3}
+          data={data}
+          renderItem={({ item, index }) => (
+            <TouchableOpacity
+              key={item.id}
+              onPress={() => pressOnItem(item)}
+              style={styles.item}
+              activeOpacity={0.8}>
+              <Image style={styles.itemImage} source={{ uri: item.image }} />
+              <Text style={styles.itemLabel}>{item.label}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
     </>
   );
 };

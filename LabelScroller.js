@@ -48,7 +48,7 @@ const LabelScroller = ({
     let dividedArray = [];
     let tempCount = dataArray.length;
     while (0 < i) {
-      // Don't slice last array
+      // don't slice last array
       if (i === 1) {
         dividedArray.push(array);
         return dividedArray;
@@ -56,7 +56,7 @@ const LabelScroller = ({
 
       let rowCount = Math.ceil((tempCount / i) * 0.6); // get 60% items from each sub-array
       if (rowCount < minimumInRow) rowCount = minimumInRow;
-      tempCount = tempCount - rowCount; //at each iteration take from the entire array
+      tempCount = tempCount - rowCount; //at each iteration take piece from the entire array
       if (tempCount <= 0) return dividedArray;
 
       const reducedItems = array.slice(0, rowCount);
@@ -113,7 +113,7 @@ const LabelScroller = ({
           const scrollRowFullWidth = scrollRef.scrollFullWidth;
           if (!scrollRef) return;
 
-          let calculatedOffset = (deviceWidth * 0.1 * scrollRowFullWidth) / deviceWidth / 6;
+          let calculatedOffset = (scrollRowFullWidth * 0.1) / 7;
           if (swipeEffort) {
             calculatedOffset = calculatedOffset * Math.abs(vx);
           }
