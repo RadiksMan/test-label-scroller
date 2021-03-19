@@ -1,4 +1,4 @@
-![example image](https://i.imgur.com/FdbMrqQ.gif)
+![example image]((https://github.com/RadiksMan/test-label-scroller/blob/master/image/image_example.gif?raw=true)
 
 ### Easily Create a Label Scrolling Component in React Native
 
